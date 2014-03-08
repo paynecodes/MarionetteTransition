@@ -1,0 +1,22 @@
+// requires "keyframes/slideToLeft";
+// requires "keyframes/slideFromRight";
+
+.animated-region.animating {
+
+    .slide.left {
+
+        &.in {
+            -webkit-animation: slideFromRight $animationTime ease;
+            -moz-animation: slideFromRight $animationTime ease;
+            animation: slideFromRight $animationTime ease;
+        }
+
+        &.out {
+            -webkit-animation: slideToLeft $animationTime ease;
+            -moz-animation: slideToLeft $animationTime ease;
+            animation: slideToLeft $animationTime ease;
+        }
+
+    }
+
+}

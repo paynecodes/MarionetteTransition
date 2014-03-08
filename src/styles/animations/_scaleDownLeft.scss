@@ -1,0 +1,22 @@
+// requires "keyframes/scaleDown";
+// requires "keyframes/slideFromRight";
+
+.animated-region.animating {
+
+    .scaleDown.left {
+
+        &.in {
+            -webkit-animation: slideFromRight $animationTime ease;
+            -moz-animation: slideFromRight $animationTime ease;
+            animation: slideFromRight $animationTime ease;
+        }
+
+        &.out {
+            -webkit-animation: scaleDown $slowerAnimTime ease;
+            -moz-animation: scaleDown $slowerAnimTime ease;
+            animation: scaleDown $slowerAnimTime ease;
+        }
+
+    }
+
+}

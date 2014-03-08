@@ -1,0 +1,51 @@
+{
+  "name": "MarionetteTransition",
+  "description": "Make your dancing Marionette apps transition beautifully.",
+  "private": false,
+  "license": "MIT",
+  "main": [
+    "./scripts/Transitioner.js",
+    "./scripts/AnimatedRegion.js"
+  ],
+  "version": "0.1.0",
+  "keywords": [
+    "backbone",
+    "backbonejs",
+    "marionette",
+    "marionettejs",
+    "backbone.marionette",
+    "transition",
+    "page",
+    "animation",
+    "animate"
+  ],
+  "authors": [
+    { "name": "Jarrod Payne", "email": "jpayne@webotomy.com" }
+  ],
+  "ignore": [
+    "src/bower_components",
+    "test",
+    "node_modules",
+    "examples",
+    ".gitignore",
+    ".gitattributes",
+    ".editorconfig",
+    ".jshintc",
+    ".bowerrc",
+    "Gruntfile.js",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jpdesigndev/MarionetteTransition.git"
+  },
+  "dependencies": {
+    "modernizr": "2.6.0 - ~2.7.0",
+    "jquery": "1.8.0 - 1.11.0",
+    "backbone.marionette": "1.5.0 - ~1.6.0"
+  },
+  "devDependencies": {
+    "requirejs": "~2.1.11",
+    "almond": "~0.2.9"
+  }
+}

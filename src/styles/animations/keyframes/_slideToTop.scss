@@ -1,0 +1,10 @@
+// Slide To Top
+@-webkit-keyframes slideToTop {
+    to { -webkit-transform: translateY(-100%); }
+}
+@-moz-keyframes slideToTop {
+    to { -moz-transform: translateY(-100%); }
+}
+@keyframes slideToTop {
+    to { transform: translateY(-100%); }
+}

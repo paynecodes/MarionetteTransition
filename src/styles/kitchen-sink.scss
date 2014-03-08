@@ -1,0 +1,23 @@
+// Base animated region
+@import "animated-region";
+
+// Animations
+@import "animations/slideLeft";
+@import "animations/slideRight";
+@import "animations/slideUp";
+@import "animations/slideDown";
+@import "animations/scaleDownLeft";
+@import "animations/scaleDownRight";
+@import "animations/scaleDownUp";
+@import "animations/scaleDownDown";
+
+// Keyframes
+@import "animations/keyframes/scaleDown";
+@import "animations/keyframes/slideFromBottom";
+@import "animations/keyframes/slideFromLeft";
+@import "animations/keyframes/slideFromRight";
+@import "animations/keyframes/slideFromTop";
+@import "animations/keyframes/slideToBottom";
+@import "animations/keyframes/slideToLeft";
+@import "animations/keyframes/slideToRight";
+@import "animations/keyframes/slideToTop";

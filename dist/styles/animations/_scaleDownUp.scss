@@ -1,0 +1,22 @@
+// requires "keyframes/scaleDown";
+// requires "keyframes/slideFromBottom";
+
+.animated-region.animating {
+
+    .scaleDown.up {
+
+        &.in {
+            -webkit-animation: slideFromBottom $animationTime ease;
+            -moz-animation: slideFromBottom $animationTime ease;
+            animation: slideFromBottom $animationTime ease;
+        }
+
+        &.out {
+            -webkit-animation: scaleDown $slowerAnimTime ease;
+            -moz-animation: scaleDown $slowerAnimTime ease;
+            animation: scaleDown $slowerAnimTime ease;
+        }
+
+    }
+
+}

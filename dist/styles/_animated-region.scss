@@ -1,0 +1,35 @@
+@import "compass/css3/transform";
+@import "settings";
+
+// Here we define styles that apply to the region container
+// whether it's animating or not.
+.animated-region {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    @include transform-style(preserve-3d);
+
+    > * { height: 100%; }
+
+    .in, .out {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+        @include backface-visibility( hidden );
+        @include transform( translate3d(0, 0, 0) );
+    }
+
+    // Need to do something with the .in container, so it doesn't
+    // throw the layout out of whack when it renders a split second before
+    // we add the .animating class to the parent div
+    .in { left: 100%; top: 100%; z-index: 2; }
+    .out { z-index: 1; }
+
+    // Now that the animating class has been added to the parent,
+    // the .in container is needs to be displayed.
+    &.animating .in { left: 0; top: 0; }
+}
