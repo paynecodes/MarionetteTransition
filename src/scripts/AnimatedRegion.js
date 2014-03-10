@@ -4,31 +4,6 @@ define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
     var _show = Marionette.Region.prototype.show,
          _slice = [].slice;
 
-    function setupOptionsDefaults(newView, options) {
-        var self = this;
-        options = _.clone(options) || {};
-        options = _.defaults(options, {
-            type: 'slide',
-            direction: 'left',
-            beforeAnimate: null,
-            transitionEndCb: function() {
-                // clean up the old view
-                self.close();
-                self.currentView = newView;
-                self.isAnimating = false;
-
-                // do the things show would normally do after showing a new view
-                Backbone.Marionette.triggerMethod.call(newView, "show");
-                Backbone.Marionette.triggerMethod.call(self, "show", newView);
-            }
-        });
-        return options;
-    }
-
-    function transition(newView, currentView, options) {
-        Transitioner.transition(newView.$el, currentView.$el, options);
-    }
-
     var AnimatedRegion = Marionette.Region.extend({
         initialize: function() {
             // Listening to show here only once instead of using onShow
@@ -54,18 +29,83 @@ define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
             } else this.transitionToView(newView, currentView, options);
         },
         transitionToView: function(newView, currentView, options) {
-            var self = this;
-            options = setupOptionsDefaults.call(this, newView, options);
-            currentView.trigger('willTransition');
-            this.stopListening(newView, 'render');
-            this.listenTo(newView, 'render', function() {
-                if (options.beforeAnimate) options.beforeAnimate.done(transition(newView, currentView, options));
-                else transition(newView, currentView, options);
-            });
             this.isAnimating = true;
+            options = setupOptionsDefaults.call(this, newView, options);
+
+            var self = this,
+                 transInClasses = Transitioner.transitionInClasses(options),
+                 transOutClasses = Transitioner.transitionOutClasses(options),
+                 animatingClass = Transitioner.animatingClass,
+                 transitionEndEventName = Transitioner.transitionEndEventName();
+
+            this.ensureEl();
+
+            var isViewClosed = newView.isClosed || _.isUndefined(newView.$el);
+            var isDifferentView = newView !== this.currentView;
+
+            // Listen for the transition end event.
+            // First, we'll make sure to clean up any lingering listeners
+            newView.$el.off(transitionEndEventName);
+            newView.$el.on(transitionEndEventName, function() {
+                // Close the old view up
+                self.close();
+                self.currentView = newView;
+                // Turn off the transition end event handler
+                newView.$el.off(transitionEndEventName);
+                // Clean up classes
+                self.$el.removeClass(animatingClass);
+                newView.$el.removeClass(transInClasses);
+
+                self.isAnimating = false;
+
+                // Call the transition end callback function passed in from options
+                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
+            });
+
+            // When this event fires, we can now be sure that the newView.$el is in the DOM
+            this.listenTo(newView, 'dom:refresh', function() {
+                if (options.beforeAnimate) options.beforeAnimate.done(function() {
+                    Transitioner.startTransition(self.$el)
+                });
+                else Transitioner.startTransition(self.$el);
+            });
+
+            newView.$el.addClass(transInClasses);
+            currentView.$el.addClass(transOutClasses);
+
+            currentView.trigger('willTransition');
+
             newView.render();
+
+            if (isDifferentView || isViewClosed) {
+              this.openAppend(newView);
+            }
+
+            // Trigger the "show" method on the region and newView as usual
+            Marionette.triggerMethod.call(this, "show", newView);
+            Marionette.triggerMethod.call(newView, "show");
+        },
+        openAppend: function(view) {
+            this.$el.append(view.el);
         }
     });
+
+    // Private
+    function setupOptionsDefaults(newView, options) {
+        var self = this;
+        options = _.clone(options) || {};
+        options = _.defaults(options, {
+            type: 'slide',
+            direction: 'left',
+            beforeAnimate: null,
+            transitionEndCb: null
+        });
+        return options;
+    }
+
+    function transition(newView, currentView, options) {
+        Transitioner.transition(newView.$el, currentView.$el, options);
+    }
 
     return AnimatedRegion;
 });

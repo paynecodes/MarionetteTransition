@@ -444,87 +444,43 @@ define("almond", function(){});
 define('transitioner',['jquery', 'underscore'], function($, _) {
     
 
-    function getTransitionInClass(options) {
-        var transitionClass = '';
-        // Determine the type of transition and build the css transformation.
-        transitionClass = options.type + ' ' + options.direction;
-        return transitionClass + ' in';
-    }
-
-    function getTransitionOutClass(options) {
-        var transitionClass = '';
-        // Determine the type of transition and build the css transformation.
-        transitionClass = options.type + ' ' + options.direction;
-
-        return transitionClass + ' out';
-    }
+    var cachedEvtName = '';
 
     var Transitioner = {
 
-        initialize: function() {
+        transitionEndEventName: function() {
+            if (cachedEvtName.length) return cachedEvtName;
 
-            var animEndEventNames = {
+            var possibleEvtNames = {
                 'WebkitAnimation' : 'webkitAnimationEnd',
                 'OAnimation' : 'oAnimationEnd',
                 'msAnimation' : 'MSAnimationEnd',
                 'animation' : 'animationend'
             };
-
-            return this.transEndEventName = animEndEventNames[ Modernizr.prefixed( 'animation' ) ];
+            cachedEvtName = possibleEvtNames[ Modernizr.prefixed( 'animation' ) ];
+            return cachedEvtName;
         },
 
-        transition: function($inEl, $outEl, options) {
-            var self = this,
-                 transitionInClass = '',
-                 transitionOutClass = '',
-                 animatingClass = 'animating',
-                 $parentEl = $outEl.parent();
+        startTransition: function($parentEl) {
+            $parentEl.addClass(this.animatingClass);
+        },
 
-            this.initialize();
+        transitionInClasses: function(options) {
+            return getTransitionClasses(options) + ' in';
+        },
 
-            // Define options if it's undefined
-            if (typeof options == 'undefined') options = {};
+        transitionOutClasses: function(options) {
+            return getTransitionClasses(options) + ' out';
+        },
 
-            // Setup some options defaults
-            _.defaults(options, {
-                type: 'slide',
-                direction: 'left',
-                transitionEndCb: null
-            });
-
-            // Get the classes needed for the CSS Transition
-            transitionInClass = getTransitionInClass(options);
-            transitionOutClass = getTransitionOutClass(options);
-
-            // Be sure that old event handlers aren't lingering around
-            $outEl.off(this.transEndEventName);
-
-            // Stand up a new event handler to listen for the end of the transition
-            $outEl.on(this.transEndEventName, function() {
-                $outEl.off(self.transEndEventName);
-                $parentEl.removeClass(animatingClass);
-                $outEl.removeClass(transitionOutClass);
-                $inEl.removeClass(transitionInClass);
-
-                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
-            });
-
-            // Add the classes to the necessary elements
-            $inEl.addClass(transitionInClass);
-            $outEl.addClass(transitionOutClass);
-
-            $parentEl.append($inEl);
-
-            // Start the animation by adding the last class to the $inEl parent
-            // the $inEl parent should be same as the $outEl parent.
-            // We're going to wait for the next turn to add this class,
-            // to ensure the DOM has had a chance to settle down
-            _.defer(function() {
-                $parentEl.addClass(animatingClass);
-            });
-        }
+        animatingClass: 'animating'
 
     };
+
+    // Private
+    function getTransitionClasses(options) {
+        return options.type + ' ' + options.direction;
+    }
 
     return Transitioner;
 });
@@ -533,31 +489,6 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
 
     var _show = Marionette.Region.prototype.show,
          _slice = [].slice;
-
-    function setupOptionsDefaults(newView, options) {
-        var self = this;
-        options = _.clone(options) || {};
-        options = _.defaults(options, {
-            type: 'slide',
-            direction: 'left',
-            beforeAnimate: null,
-            transitionEndCb: function() {
-                // clean up the old view
-                self.close();
-                self.currentView = newView;
-                self.isAnimating = false;
-
-                // do the things show would normally do after showing a new view
-                Backbone.Marionette.triggerMethod.call(newView, "show");
-                Backbone.Marionette.triggerMethod.call(self, "show", newView);
-            }
-        });
-        return options;
-    }
-
-    function transition(newView, currentView, options) {
-        Transitioner.transition(newView.$el, currentView.$el, options);
-    }
 
     var AnimatedRegion = Marionette.Region.extend({
         initialize: function() {
@@ -584,105 +515,126 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
             } else this.transitionToView(newView, currentView, options);
         },
         transitionToView: function(newView, currentView, options) {
-            var self = this;
-            options = setupOptionsDefaults.call(this, newView, options);
-            currentView.trigger('willTransition');
-            this.stopListening(newView, 'render');
-            this.listenTo(newView, 'render', function() {
-                if (options.beforeAnimate) options.beforeAnimate.done(transition(newView, currentView, options));
-                else transition(newView, currentView, options);
-            });
             this.isAnimating = true;
+            options = setupOptionsDefaults.call(this, newView, options);
+
+            var self = this,
+                 transInClasses = Transitioner.transitionInClasses(options),
+                 transOutClasses = Transitioner.transitionOutClasses(options),
+                 animatingClass = Transitioner.animatingClass,
+                 transitionEndEventName = Transitioner.transitionEndEventName();
+
+            this.ensureEl();
+
+            var isViewClosed = newView.isClosed || _.isUndefined(newView.$el);
+            var isDifferentView = newView !== this.currentView;
+
+            // Listen for the transition end event.
+            // First, we'll make sure to clean up any lingering listeners
+            newView.$el.off(transitionEndEventName);
+            newView.$el.on(transitionEndEventName, function() {
+                // Close the old view up
+                self.close();
+                self.currentView = newView;
+                // Turn off the transition end event handler
+                newView.$el.off(transitionEndEventName);
+                // Clean up classes
+                self.$el.removeClass(animatingClass);
+                newView.$el.removeClass(transInClasses);
+
+                self.isAnimating = false;
+
+                // Call the transition end callback function passed in from options
+                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
+            });
+
+            // When this event fires, we can now be sure that the newView.$el is in the DOM
+            this.listenTo(newView, 'dom:refresh', function() {
+                if (options.beforeAnimate) options.beforeAnimate.done(function() {
+                    Transitioner.startTransition(self.$el)
+                });
+                else Transitioner.startTransition(self.$el);
+            });
+
+            newView.$el.addClass(transInClasses);
+            currentView.$el.addClass(transOutClasses);
+
+            currentView.trigger('willTransition');
+
             newView.render();
+
+            if (isDifferentView || isViewClosed) {
+              this.openAppend(newView);
+            }
+
+            // Trigger the "show" method on the region and newView as usual
+            Marionette.triggerMethod.call(this, "show", newView);
+            Marionette.triggerMethod.call(newView, "show");
+        },
+        openAppend: function(view) {
+            this.$el.append(view.el);
         }
     });
+
+    // Private
+    function setupOptionsDefaults(newView, options) {
+        var self = this;
+        options = _.clone(options) || {};
+        options = _.defaults(options, {
+            type: 'slide',
+            direction: 'left',
+            beforeAnimate: null,
+            transitionEndCb: null
+        });
+        return options;
+    }
+
+    function transition(newView, currentView, options) {
+        Transitioner.transition(newView.$el, currentView.$el, options);
+    }
 
     return AnimatedRegion;
 });
 define('Transitioner',['jquery', 'underscore'], function($, _) {
     
 
-    function getTransitionInClass(options) {
-        var transitionClass = '';
-        // Determine the type of transition and build the css transformation.
-        transitionClass = options.type + ' ' + options.direction;
-        return transitionClass + ' in';
-    }
-
-    function getTransitionOutClass(options) {
-        var transitionClass = '';
-        // Determine the type of transition and build the css transformation.
-        transitionClass = options.type + ' ' + options.direction;
-
-        return transitionClass + ' out';
-    }
+    var cachedEvtName = '';
 
     var Transitioner = {
 
-        initialize: function() {
+        transitionEndEventName: function() {
+            if (cachedEvtName.length) return cachedEvtName;
 
-            var animEndEventNames = {
+            var possibleEvtNames = {
                 'WebkitAnimation' : 'webkitAnimationEnd',
                 'OAnimation' : 'oAnimationEnd',
                 'msAnimation' : 'MSAnimationEnd',
                 'animation' : 'animationend'
             };
-
-            return this.transEndEventName = animEndEventNames[ Modernizr.prefixed( 'animation' ) ];
+            cachedEvtName = possibleEvtNames[ Modernizr.prefixed( 'animation' ) ];
+            return cachedEvtName;
         },
 
-        transition: function($inEl, $outEl, options) {
-            var self = this,
-                 transitionInClass = '',
-                 transitionOutClass = '',
-                 animatingClass = 'animating',
-                 $parentEl = $outEl.parent();
+        startTransition: function($parentEl) {
+            $parentEl.addClass(this.animatingClass);
+        },
 
-            this.initialize();
+        transitionInClasses: function(options) {
+            return getTransitionClasses(options) + ' in';
+        },
 
-            // Define options if it's undefined
-            if (typeof options == 'undefined') options = {};
+        transitionOutClasses: function(options) {
+            return getTransitionClasses(options) + ' out';
+        },
 
-            // Setup some options defaults
-            _.defaults(options, {
-                type: 'slide',
-                direction: 'left',
-                transitionEndCb: null
-            });
-
-            // Get the classes needed for the CSS Transition
-            transitionInClass = getTransitionInClass(options);
-            transitionOutClass = getTransitionOutClass(options);
-
-            // Be sure that old event handlers aren't lingering around
-            $outEl.off(this.transEndEventName);
-
-            // Stand up a new event handler to listen for the end of the transition
-            $outEl.on(this.transEndEventName, function() {
-                $outEl.off(self.transEndEventName);
-                $parentEl.removeClass(animatingClass);
-                $outEl.removeClass(transitionOutClass);
-                $inEl.removeClass(transitionInClass);
-
-                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
-            });
-
-            // Add the classes to the necessary elements
-            $inEl.addClass(transitionInClass);
-            $outEl.addClass(transitionOutClass);
-
-            $parentEl.append($inEl);
-
-            // Start the animation by adding the last class to the $inEl parent
-            // the $inEl parent should be same as the $outEl parent.
-            // We're going to wait for the next turn to add this class,
-            // to ensure the DOM has had a chance to settle down
-            _.defer(function() {
-                $parentEl.addClass(animatingClass);
-            });
-        }
+        animatingClass: 'animating'
 
     };
+
+    // Private
+    function getTransitionClasses(options) {
+        return options.type + ' ' + options.direction;
+    }
 
     return Transitioner;
 });
