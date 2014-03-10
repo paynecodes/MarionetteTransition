@@ -1,4 +1,4 @@
-define([], function() {
+define(['jquery', 'underscore'], function($, _) {
     'use strict';
 
     function getTransitionInClass(options) {
@@ -52,8 +52,6 @@ define([], function() {
             // Get the classes needed for the CSS Transition
             transitionInClass = getTransitionInClass(options);
             transitionOutClass = getTransitionOutClass(options);
-
-            console.log(transitionInClass);
 
             // Be sure that old event handlers aren't lingering around
             $outEl.off(this.transEndEventName);

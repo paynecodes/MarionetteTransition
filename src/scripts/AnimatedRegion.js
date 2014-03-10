@@ -1,4 +1,4 @@
-define(['transitioner'], function(Transitioner) {
+define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
     'use strict';
 
     var _show = Marionette.Region.prototype.show,
@@ -10,6 +10,7 @@ define(['transitioner'], function(Transitioner) {
         options = _.defaults(options, {
             type: 'slide',
             direction: 'left',
+            beforeAnimate: null,
             transitionEndCb: function() {
                 // clean up the old view
                 self.close();
@@ -24,20 +25,25 @@ define(['transitioner'], function(Transitioner) {
         return options;
     }
 
+    function transition(newView, currentView, options) {
+        Transitioner.transition(newView.$el, currentView.$el, options);
+    }
+
     var AnimatedRegion = Marionette.Region.extend({
         initialize: function() {
             // Listening to show here only once instead of using onShow
-            // because the onShow function is called every time a view is rendered in it.
+            // We only want to perform this operation once for each instance of a region.
             this.listenToOnce(this, 'show', function() {
                 this.$el.addClass('animated-region');
             });
         },
         show: function(newView, options) {
+            // Hold up! This region is still animating
+            if (this.isAnimating) return;
+
             // Do we have a view currently?
             var currentView = this.currentView,
                  args;
-
-            if (this.isAnimating) return;
 
             args = 1 <= arguments.length ? _slice.call(arguments, 0) : [];
 
@@ -53,7 +59,8 @@ define(['transitioner'], function(Transitioner) {
             currentView.trigger('willTransition');
             this.stopListening(newView, 'render');
             this.listenTo(newView, 'render', function() {
-                Transitioner.transition(newView.$el, currentView.$el, options);
+                if (options.beforeAnimate) options.beforeAnimate.done(transition(newView, currentView, options));
+                else transition(newView, currentView, options);
             });
             this.isAnimating = true;
             newView.render();

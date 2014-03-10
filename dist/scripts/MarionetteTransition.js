@@ -6,15 +6,18 @@
 ** License: MIT
 */
 (function (root, factory) {
-    // Set up RegionTransition appropriately for the environment.
+    // Set up MarionetteTransition appropriately for the environment.
+    // An example of this methodology can be found here: https://github.com/requirejs/example-libglobal
     if (typeof define === 'function' && define.amd) {
         // AMD
         define(['jquery', 'underscore', 'backbone', 'backbone.marionette'], factory);
     } else {
         // Browser globals
-        root.RegionTransition = factory((root.jQuery || root.Zepto), root._, root.Backbone, root.Marionette);
+        root.MarionetteTransition = factory((root.jQuery || root.Zepto), root._, root.Backbone, root.Marionette);
     }
-}(this, function ($, _, Backbone) {/**
+}(this, function ($, _, Backbone, Marionette) {
+
+/**
  * @license almond 0.2.9 Copyright (c) 2011-2014, The Dojo Foundation All Rights Reserved.
  * Available via the MIT or new BSD license.
  * see: http://github.com/jrburke/almond for details
@@ -438,5 +441,268 @@ var requirejs, require, define;
 
 define("almond", function(){});
 
+define('transitioner',['jquery', 'underscore'], function($, _) {
+    
 
+    function getTransitionInClass(options) {
+        var transitionClass = '';
+        // Determine the type of transition and build the css transformation.
+        transitionClass = options.type + ' ' + options.direction;
+        return transitionClass + ' in';
+    }
+
+    function getTransitionOutClass(options) {
+        var transitionClass = '';
+        // Determine the type of transition and build the css transformation.
+        transitionClass = options.type + ' ' + options.direction;
+
+        return transitionClass + ' out';
+    }
+
+    var Transitioner = {
+
+        initialize: function() {
+
+            var animEndEventNames = {
+                'WebkitAnimation' : 'webkitAnimationEnd',
+                'OAnimation' : 'oAnimationEnd',
+                'msAnimation' : 'MSAnimationEnd',
+                'animation' : 'animationend'
+            };
+
+            return this.transEndEventName = animEndEventNames[ Modernizr.prefixed( 'animation' ) ];
+        },
+
+        transition: function($inEl, $outEl, options) {
+            var self = this,
+                 transitionInClass = '',
+                 transitionOutClass = '',
+                 animatingClass = 'animating',
+                 $parentEl = $outEl.parent();
+
+            this.initialize();
+
+            // Define options if it's undefined
+            if (typeof options == 'undefined') options = {};
+
+            // Setup some options defaults
+            _.defaults(options, {
+                type: 'slide',
+                direction: 'left',
+                transitionEndCb: null
+            });
+
+            // Get the classes needed for the CSS Transition
+            transitionInClass = getTransitionInClass(options);
+            transitionOutClass = getTransitionOutClass(options);
+
+            // Be sure that old event handlers aren't lingering around
+            $outEl.off(this.transEndEventName);
+
+            // Stand up a new event handler to listen for the end of the transition
+            $outEl.on(this.transEndEventName, function() {
+                $outEl.off(self.transEndEventName);
+                $parentEl.removeClass(animatingClass);
+                $outEl.removeClass(transitionOutClass);
+                $inEl.removeClass(transitionInClass);
+
+                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
+            });
+
+            // Add the classes to the necessary elements
+            $inEl.addClass(transitionInClass);
+            $outEl.addClass(transitionOutClass);
+
+            $parentEl.append($inEl);
+
+            // Start the animation by adding the last class to the $inEl parent
+            // the $inEl parent should be same as the $outEl parent.
+            // We're going to wait for the next turn to add this class,
+            // to ensure the DOM has had a chance to settle down
+            _.defer(function() {
+                $parentEl.addClass(animatingClass);
+            });
+        }
+
+    };
+
+    return Transitioner;
+});
+define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
+    
+
+    var _show = Marionette.Region.prototype.show,
+         _slice = [].slice;
+
+    function setupOptionsDefaults(newView, options) {
+        var self = this;
+        options = _.clone(options) || {};
+        options = _.defaults(options, {
+            type: 'slide',
+            direction: 'left',
+            beforeAnimate: null,
+            transitionEndCb: function() {
+                // clean up the old view
+                self.close();
+                self.currentView = newView;
+                self.isAnimating = false;
+
+                // do the things show would normally do after showing a new view
+                Backbone.Marionette.triggerMethod.call(newView, "show");
+                Backbone.Marionette.triggerMethod.call(self, "show", newView);
+            }
+        });
+        return options;
+    }
+
+    function transition(newView, currentView, options) {
+        Transitioner.transition(newView.$el, currentView.$el, options);
+    }
+
+    var AnimatedRegion = Marionette.Region.extend({
+        initialize: function() {
+            // Listening to show here only once instead of using onShow
+            // We only want to perform this operation once for each instance of a region.
+            this.listenToOnce(this, 'show', function() {
+                this.$el.addClass('animated-region');
+            });
+        },
+        show: function(newView, options) {
+            // Hold up! This region is still animating
+            if (this.isAnimating) return;
+
+            // Do we have a view currently?
+            var currentView = this.currentView,
+                 args;
+
+            args = 1 <= arguments.length ? _slice.call(arguments, 0) : [];
+
+            // If we don't currently have a view, simply show the newView and exit
+            if (!currentView || currentView.isClosed){
+                _show.apply(this, args);
+                return;
+            } else this.transitionToView(newView, currentView, options);
+        },
+        transitionToView: function(newView, currentView, options) {
+            var self = this;
+            options = setupOptionsDefaults.call(this, newView, options);
+            currentView.trigger('willTransition');
+            this.stopListening(newView, 'render');
+            this.listenTo(newView, 'render', function() {
+                if (options.beforeAnimate) options.beforeAnimate.done(transition(newView, currentView, options));
+                else transition(newView, currentView, options);
+            });
+            this.isAnimating = true;
+            newView.render();
+        }
+    });
+
+    return AnimatedRegion;
+});
+define('Transitioner',['jquery', 'underscore'], function($, _) {
+    
+
+    function getTransitionInClass(options) {
+        var transitionClass = '';
+        // Determine the type of transition and build the css transformation.
+        transitionClass = options.type + ' ' + options.direction;
+        return transitionClass + ' in';
+    }
+
+    function getTransitionOutClass(options) {
+        var transitionClass = '';
+        // Determine the type of transition and build the css transformation.
+        transitionClass = options.type + ' ' + options.direction;
+
+        return transitionClass + ' out';
+    }
+
+    var Transitioner = {
+
+        initialize: function() {
+
+            var animEndEventNames = {
+                'WebkitAnimation' : 'webkitAnimationEnd',
+                'OAnimation' : 'oAnimationEnd',
+                'msAnimation' : 'MSAnimationEnd',
+                'animation' : 'animationend'
+            };
+
+            return this.transEndEventName = animEndEventNames[ Modernizr.prefixed( 'animation' ) ];
+        },
+
+        transition: function($inEl, $outEl, options) {
+            var self = this,
+                 transitionInClass = '',
+                 transitionOutClass = '',
+                 animatingClass = 'animating',
+                 $parentEl = $outEl.parent();
+
+            this.initialize();
+
+            // Define options if it's undefined
+            if (typeof options == 'undefined') options = {};
+
+            // Setup some options defaults
+            _.defaults(options, {
+                type: 'slide',
+                direction: 'left',
+                transitionEndCb: null
+            });
+
+            // Get the classes needed for the CSS Transition
+            transitionInClass = getTransitionInClass(options);
+            transitionOutClass = getTransitionOutClass(options);
+
+            // Be sure that old event handlers aren't lingering around
+            $outEl.off(this.transEndEventName);
+
+            // Stand up a new event handler to listen for the end of the transition
+            $outEl.on(this.transEndEventName, function() {
+                $outEl.off(self.transEndEventName);
+                $parentEl.removeClass(animatingClass);
+                $outEl.removeClass(transitionOutClass);
+                $inEl.removeClass(transitionInClass);
+
+                if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
+            });
+
+            // Add the classes to the necessary elements
+            $inEl.addClass(transitionInClass);
+            $outEl.addClass(transitionOutClass);
+
+            $parentEl.append($inEl);
+
+            // Start the animation by adding the last class to the $inEl parent
+            // the $inEl parent should be same as the $outEl parent.
+            // We're going to wait for the next turn to add this class,
+            // to ensure the DOM has had a chance to settle down
+            _.defer(function() {
+                $parentEl.addClass(animatingClass);
+            });
+        }
+
+    };
+
+    return Transitioner;
+});
+    //Register in the values from the outer closure for common dependencies
+    //as local almond modules
+    define('jquery', function () {
+        return $;
+    });
+    define('underscore', function () {
+        return _;
+    });
+    define('backbone', function () {
+        return Backbone;
+    });
+    define('backbone.marionette', function () {
+        return Marionette;
+    });
+
+    //Use almond's special top-level, synchronous require to trigger factory
+    //functions, get the final module value, and export it as the public
+    //value.
+    return require('AnimatedRegion');
 }));

@@ -252,30 +252,31 @@ module.exports = function (grunt) {
         },
 
         requirejs: {
-            dist: {
-                options: {
-                    baseUrl: '<%= yeoman.app %>/scripts',
-                    mainConfigFile: '<%= yeoman.app %>/scripts/config.js',
-                    name: 'almond',
-                    out: '<%= yeoman.dist %>/scripts/MarionetteTransition.min.js',
-                    optimize: 'uglify',
-                    wrap:{
-                        startFile:"<%= yeoman.app %>/fragments/wrap-start.frag",
-                        endFile:"<%= yeoman.app %>/fragments/wrap-end.frag"
-                    }
+            options: {
+                baseUrl: '<%= yeoman.app %>/scripts',
+                paths: {
+                    "AnimatedRegion": "AnimatedRegion",
+                    "Transitioner": "Transitioner",
+                    "jquery": "../bower_components/jquery/dist/jquery",
+                    "underscore": "../bower_components/underscore/underscore",
+                    "backbone": "../bower_components/backbone/backbone",
+                    "backbone.marionette": "../bower_components/backbone.marionette/lib/backbone.marionette",
+                    "almond": "../bower_components/almond/almond"
+                },
+                include: ['almond', 'AnimatedRegion', 'Transitioner'],
+                exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette'],
+                out: '<%= yeoman.dist %>/scripts/MarionetteTransition.min.js',
+                optimize: 'uglify',
+                wrap:{
+                    startFile:"<%= yeoman.app %>/fragments/wrap-start.frag",
+                    endFile:"<%= yeoman.app %>/fragments/wrap-end.frag"
                 }
             },
+            dist: {},
             distNoMin: {
                 options: {
-                    baseUrl: '<%= yeoman.app %>/scripts',
-                    mainConfigFile: '<%= yeoman.app %>/scripts/config.js',
-                    name: 'almond',
                     out: '<%= yeoman.dist %>/scripts/MarionetteTransition.js',
-                    optimize: 'none',
-                    wrap:{
-                        startFile:"<%= yeoman.app %>/fragments/wrap-start.frag",
-                        endFile:"<%= yeoman.app %>/fragments/wrap-end.frag"
-                    }
+                    optimize: 'none'
                 }
             }
         }

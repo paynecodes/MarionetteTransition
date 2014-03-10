@@ -6,12 +6,14 @@
 ** License: MIT
 */
 (function (root, factory) {
-    // Set up RegionTransition appropriately for the environment.
+    // Set up MarionetteTransition appropriately for the environment.
+    // An example of this methodology can be found here: https://github.com/requirejs/example-libglobal
     if (typeof define === 'function' && define.amd) {
         // AMD
         define(['jquery', 'underscore', 'backbone', 'backbone.marionette'], factory);
     } else {
         // Browser globals
-        root.RegionTransition = factory((root.jQuery || root.Zepto), root._, root.Backbone, root.Marionette);
+        root.MarionetteTransition = factory((root.jQuery || root.Zepto), root._, root.Backbone, root.Marionette);
     }
-}(this, function ($, _, Backbone) {
+}(this, function ($, _, Backbone, Marionette) {
+
