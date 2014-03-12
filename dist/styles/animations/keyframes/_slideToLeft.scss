@@ -1,0 +1,10 @@
+// Move To Left
+@-webkit-keyframes slideToLeft {
+    to { -webkit-transform: translateX(-100%); }
+}
+@-moz-keyframes slideToLeft {
+    to { -moz-transform: translateX(-100%); }
+}
+@keyframes slideToLeft {
+    to { transform: translateX(-100%); }
+}
