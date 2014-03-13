@@ -1,5 +1,5 @@
 /*
-** MarionetteTransition 0.1.4
+** MarionetteTransition 0.1.5
 ** Description: Make your dancing Marionette apps transition beautifully.
 ** Author: Jarrod Payne
 ** Company: Webotomy
@@ -550,10 +550,12 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
 
             // When this event fires, we can now be sure that the newView.$el is in the DOM
             this.listenTo(newView, 'dom:refresh', function() {
-                if (options.beforeAnimate) options.beforeAnimate.done(function() {
-                    Transitioner.startTransition(options.animatingEl);
-                });
-                else Transitioner.startTransition(options.animatingEl);
+                // Call the private transition function
+                // only if the option.shouldStartAnim is true
+                // which is the case by default.
+                if (options.shouldStartAnim) {
+                    transition(options);
+                }
             });
 
             newView.$el.addClass(transInClasses);
@@ -577,21 +579,106 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
     });
 
     // Private
+
+    // This function is responsible for setting up some
+    // default options on the passed in options object
+    //
+    // It clones the options object because of the way JavaScript passes
+    // object by reference. If we didn't clone this object, subsequent calls
+    // using the same options object would contain these mutated values
+    // as well.
+    //
+    // Below are the descriptions of the defaults set on the options object.
+    //
+    // type: "slide", "scaleDown"
+    // The type of transition you'd like to perform
+    // You can create your own transitions by checking out
+    // how we're doing them here. The options.type value you pass
+    // will be a class on the .in and .out elements
+    //
+    // direction: "left", "right", "up", "down"
+    // The direction in which the transition should occur
+    // Again, create your own if you'd like. The options.direction
+    // value will be a class on the .in and .out elements
+    //
+    // transitionEndCb: null, function()
+    // Use this if you'd like to do some additional things after
+    // the transition is complete. We're already doing some regular
+    // Backbone/Marionette style cleanup for you. See where we listen
+    // for the newView.$el.on(transitionEndEventName, function...)
+    // to see what we're doing already.
+    //
+    // animatingEl: self.$el, any jQuery object
+    // The element that should receive the .animating class
+    // to begin the transition. This will often be the default,
+    // but you can use this if you'd like to animate more than one
+    // region at one time, only applying this class to a single DOM
+    // element like $('body').
+    // You should use this in combination with
+    // options.beforeAnimate and options.shouldStartAnim
+    //
+    // shouldStartAnim: true, false
+    // Should we call the transition function at all?
+    // If you are using a single animatingEl for more than one region,
+    // and are using a beforeAnimate deferred object,
+    // you likely don't want to call the transition() function at all for the
+    // for the view your waiting to resolve the deferred. This way, when
+    // when the deferred is resolved, you can call the transition() function
+    // only once.
+    //
+    // beforeAnimate: null, $.Deferred
+    // If you'd like to do some things before the animation occurs,
+    // like adding more than one view to the dom, pass a jQuery deferred object
+    // or a deferred object that has a common .done() API. You'll be responsible
+    // for resolving that deferred object which will trigger the animation
     function setupOptionsDefaults(newView, options) {
         var self = this;
         options = _.clone(options) || {};
         options = _.defaults(options, {
             type: 'slide',
             direction: 'left',
+            transitionEndCb: null,
             animatingEl: self.$el,
-            beforeAnimate: null,
-            transitionEndCb: null
+            shouldStartAnim: true,
+            beforeAnimate: null
         });
         return options;
     }
 
-    function transition(newView, currentView, options) {
-        Transitioner.transition(newView.$el, currentView.$el, options);
+    // This function is responsible for starting our
+    // transition. I'm sorry that this function is so crazy.
+    // It's taken me hours to figure our why this has to be
+    // so difficult in Safari Desktop and iOS.
+    //
+    // It accepts the options object containing some vital information
+    // about whether it should trigger the animation immediately, or
+    // wait for a deferred object to resolve.
+    //
+    // Basically, when this function is called,
+    // _.defer causes it to wait until the next turn of the
+    // JavaScript loop.
+    // Then, _.delay delays the execution by 20ms. Again, I'm sorry for the
+    // magic number here, but, for some reason, Safari hates
+    // it when I try to begin the animation just after the element
+    // is placed in the DOM. I suspect this is a repaint/reflow thing,
+    // but every other modern browser handled it just fine without
+    // this mess.
+    //
+    // Once, the interesting part of this function executes,
+    // we check to see if a deferred object is being passed
+    // in options.beforeAnimate. If one has, we'll perform the
+    // action when the deferred object is resolved.
+    // If the options.beforeAnimate is set to null (default), we'll
+    // go ahead and perform the action.
+    function transition(options) {
+        _.defer(function() {
+            _.delay(function() {
+                if (options.beforeAnimate) options.beforeAnimate.done(function() {
+                    Transitioner.startTransition(options.animatingEl);
+                });
+                else Transitioner.startTransition(options.animatingEl);
+            }, 20);
+        });
     }
 
     return AnimatedRegion;
