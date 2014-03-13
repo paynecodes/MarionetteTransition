@@ -28,8 +28,8 @@
     // we add the .animating class to the parent div
     .in { left: 100%; top: 100%; z-index: 2; }
     .out { z-index: 1; }
-
-    // Now that the animating class has been added to the parent,
-    // the .in container is needs to be displayed.
-    &.animating .in { left: 0; top: 0; }
 }
+
+// Now that the animating class has been added to the parent,
+// the .in container is needs to be displayed.
+.animating .in { left: 0; top: 0; }

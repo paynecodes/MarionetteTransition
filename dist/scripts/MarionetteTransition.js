@@ -539,7 +539,7 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
                 // Turn off the transition end event handler
                 newView.$el.off(transitionEndEventName);
                 // Clean up classes
-                self.$el.removeClass(animatingClass);
+                options.animatingEl.removeClass(animatingClass);
                 newView.$el.removeClass(transInClasses);
 
                 self.isAnimating = false;
@@ -551,9 +551,9 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
             // When this event fires, we can now be sure that the newView.$el is in the DOM
             this.listenTo(newView, 'dom:refresh', function() {
                 if (options.beforeAnimate) options.beforeAnimate.done(function() {
-                    Transitioner.startTransition(self.$el)
+                    Transitioner.startTransition(options.animatingEl);
                 });
-                else Transitioner.startTransition(self.$el);
+                else Transitioner.startTransition(options.animatingEl);
             });
 
             newView.$el.addClass(transInClasses);
@@ -583,6 +583,7 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
         options = _.defaults(options, {
             type: 'slide',
             direction: 'left',
+            animatingEl: self.$el,
             beforeAnimate: null,
             transitionEndCb: null
         });
