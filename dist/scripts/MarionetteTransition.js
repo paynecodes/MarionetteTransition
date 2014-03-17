@@ -564,6 +564,8 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
             currentView.trigger('willTransition');
 
             newView.render();
+            Marionette.triggerMethod.call(newView, "before:show");
+            Marionette.triggerMethod.call(this, "before:show", newView);
 
             if (isDifferentView || isViewClosed) {
               this.openAppend(newView);
@@ -683,6 +685,7 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
 
     return AnimatedRegion;
 });
+
 define('Transitioner',['jquery', 'underscore'], function($, _) {
     
 

@@ -78,6 +78,8 @@ define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
             currentView.trigger('willTransition');
 
             newView.render();
+            Marionette.triggerMethod.call(newView, "before:show");
+            Marionette.triggerMethod.call(this, "before:show", newView);
 
             if (isDifferentView || isViewClosed) {
               this.openAppend(newView);
