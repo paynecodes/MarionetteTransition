@@ -1,13 +1,13 @@
 {
   "name": "MarionetteTransition",
   "description": "Make your dancing Marionette apps transition beautifully.",
+  "version": "0.1.6",
   "private": false,
   "license": "MIT",
   "main": [
     "./scripts/Transitioner.js",
     "./scripts/AnimatedRegion.js"
   ],
-  "version": "0.1.5",
   "keywords": [
     "backbone",
     "backbonejs",
