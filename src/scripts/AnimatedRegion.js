@@ -1,4 +1,4 @@
-define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
+define(['jquery', 'underscore', 'backbone.marionette', 'transitioner'], function($, _, Marionette, Transitioner) {
     'use strict';
 
     var _show = Marionette.Region.prototype.show,
@@ -25,6 +25,8 @@ define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
             // If we don't currently have a view, simply show the newView and exit
             if (!currentView || currentView.isClosed){
                 _show.apply(this, args);
+                Marionette.triggerMethod.call(newView, "after:transition");
+                Marionette.triggerMethod.call(this, "after:transition", newView);
                 return;
             } else this.transitionToView(newView, currentView, options);
         },
@@ -57,6 +59,9 @@ define(['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
                 newView.$el.removeClass(transInClasses);
 
                 self.isAnimating = false;
+
+                Marionette.triggerMethod.call(newView, "after:transition");
+                Marionette.triggerMethod.call(this, "after:transition", newView);
 
                 // Call the transition end callback function passed in from options
                 if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
