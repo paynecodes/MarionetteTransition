@@ -1,5 +1,5 @@
 /*
-** MarionetteTransition 0.1.6
+** MarionetteTransition 0.1.7
 ** Description: Make your dancing Marionette apps transition beautifully.
 ** Author: Jarrod Payne
 ** Company: Webotomy
@@ -484,7 +484,7 @@ define('transitioner',['jquery', 'underscore'], function($, _) {
 
     return Transitioner;
 });
-define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _, Transitioner) {
+define('AnimatedRegion',['jquery', 'underscore', 'backbone.marionette', 'transitioner'], function($, _, Marionette, Transitioner) {
     
 
     var _show = Marionette.Region.prototype.show,
@@ -511,6 +511,8 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
             // If we don't currently have a view, simply show the newView and exit
             if (!currentView || currentView.isClosed){
                 _show.apply(this, args);
+                Marionette.triggerMethod.call(newView, "after:transition");
+                Marionette.triggerMethod.call(this, "after:transition", newView);
                 return;
             } else this.transitionToView(newView, currentView, options);
         },
@@ -543,6 +545,9 @@ define('AnimatedRegion',['jquery', 'underscore', 'transitioner'], function($, _,
                 newView.$el.removeClass(transInClasses);
 
                 self.isAnimating = false;
+
+                Marionette.triggerMethod.call(newView, "after:transition");
+                Marionette.triggerMethod.call(this, "after:transition", newView);
 
                 // Call the transition end callback function passed in from options
                 if (_.isFunction(options.transitionEndCb)) options.transitionEndCb.call(self);
