@@ -1,21 +1,10 @@
 define(['jquery', 'underscore'], function($, _) {
     'use strict';
 
-    var cachedEvtName = '';
-
     var Transitioner = {
 
         transitionEndEventName: function() {
-            if (cachedEvtName.length) return cachedEvtName;
-
-            var possibleEvtNames = {
-                'WebkitAnimation' : 'webkitAnimationEnd',
-                'OAnimation' : 'oAnimationEnd',
-                'msAnimation' : 'MSAnimationEnd',
-                'animation' : 'animationend'
-            };
-            cachedEvtName = possibleEvtNames[ Modernizr.prefixed( 'animation' ) ];
-            return cachedEvtName;
+            return 'webkitAnimationEnd oAnimationEnd MSAnimationEnd animationend transitionend webkitTransitionEnd MSTransitionEnd oTransitionEnd';
         },
 
         startTransition: function($parentEl) {

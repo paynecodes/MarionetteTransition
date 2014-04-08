@@ -1,5 +1,5 @@
 /*
-** MarionetteTransition 0.1.7
+** MarionetteTransition 0.1.8
 ** Description: Make your dancing Marionette apps transition beautifully.
 ** Author: Jarrod Payne
 ** Company: Webotomy

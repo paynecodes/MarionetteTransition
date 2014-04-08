@@ -1,5 +1,5 @@
 /*
-** MarionetteTransition 0.1.7
+** MarionetteTransition 0.1.8
 ** Description: Make your dancing Marionette apps transition beautifully.
 ** Author: Jarrod Payne
 ** Company: Webotomy
@@ -444,21 +444,10 @@ define("almond", function(){});
 define('transitioner',['jquery', 'underscore'], function($, _) {
     
 
-    var cachedEvtName = '';
-
     var Transitioner = {
 
         transitionEndEventName: function() {
-            if (cachedEvtName.length) return cachedEvtName;
-
-            var possibleEvtNames = {
-                'WebkitAnimation' : 'webkitAnimationEnd',
-                'OAnimation' : 'oAnimationEnd',
-                'msAnimation' : 'MSAnimationEnd',
-                'animation' : 'animationend'
-            };
-            cachedEvtName = possibleEvtNames[ Modernizr.prefixed( 'animation' ) ];
-            return cachedEvtName;
+            return 'webkitAnimationEnd oAnimationEnd MSAnimationEnd animationend transitionend webkitTransitionEnd MSTransitionEnd oTransitionEnd';
         },
 
         startTransition: function($parentEl) {
@@ -484,6 +473,7 @@ define('transitioner',['jquery', 'underscore'], function($, _) {
 
     return Transitioner;
 });
+
 define('AnimatedRegion',['jquery', 'underscore', 'backbone.marionette', 'transitioner'], function($, _, Marionette, Transitioner) {
     
 
@@ -694,21 +684,10 @@ define('AnimatedRegion',['jquery', 'underscore', 'backbone.marionette', 'transit
 define('Transitioner',['jquery', 'underscore'], function($, _) {
     
 
-    var cachedEvtName = '';
-
     var Transitioner = {
 
         transitionEndEventName: function() {
-            if (cachedEvtName.length) return cachedEvtName;
-
-            var possibleEvtNames = {
-                'WebkitAnimation' : 'webkitAnimationEnd',
-                'OAnimation' : 'oAnimationEnd',
-                'msAnimation' : 'MSAnimationEnd',
-                'animation' : 'animationend'
-            };
-            cachedEvtName = possibleEvtNames[ Modernizr.prefixed( 'animation' ) ];
-            return cachedEvtName;
+            return 'webkitAnimationEnd oAnimationEnd MSAnimationEnd animationend transitionend webkitTransitionEnd MSTransitionEnd oTransitionEnd';
         },
 
         startTransition: function($parentEl) {
@@ -734,6 +713,7 @@ define('Transitioner',['jquery', 'underscore'], function($, _) {
 
     return Transitioner;
 });
+
     //Register in the values from the outer closure for common dependencies
     //as local almond modules
     define('jquery', function () {
