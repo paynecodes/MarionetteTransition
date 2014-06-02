@@ -261,7 +261,18 @@ module.exports = function (grunt) {
                     "underscore": "../bower_components/underscore/underscore",
                     "backbone": "../bower_components/backbone/backbone",
                     "backbone.marionette": "../bower_components/backbone.marionette/lib/backbone.marionette",
-                    "almond": "../bower_components/almond/almond"
+                    "almond": "../bower_components/almond/almond",
+                    'gsap.tweenlite': '../bower_components/gsap/src/uncompressed/TweenLite',
+                    'gsap.cssplugin': '../bower_components/gsap/src/uncompressed/plugins/CSSPlugin'
+                },
+                shim: {
+                    'gsap.cssplugin': {
+                        exports: 'CSSPlugin'
+                        deps: ['gsap.tweenlite']
+                    },
+                    'gsap.tweenlite': {
+                        exports: 'TweenLite'
+                    }
                 },
                 include: ['almond', 'AnimatedRegion', 'Transitioner'],
                 exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette'],

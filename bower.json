@@ -1,7 +1,7 @@
 {
   "name": "MarionetteTransition",
   "description": "Make your dancing Marionette apps transition beautifully.",
-  "version": "0.1.8",
+  "version": "0.3.1",
   "private": false,
   "license": "MIT",
   "main": [
@@ -17,10 +17,14 @@
     "transition",
     "page",
     "animation",
-    "animate"
+    "animate",
+    "gsap"
   ],
   "authors": [
-    { "name": "Jarrod Payne", "email": "jpayne@webotomy.com" }
+    {
+      "name": "Jarrod Payne",
+      "email": "jpayne@webotomy.com"
+    }
   ],
   "ignore": [
     "src/bower_components",
@@ -42,7 +46,8 @@
   "dependencies": {
     "modernizr": "^2.6.0",
     "jquery": "1.8.0 - 1.11.0",
-    "backbone.marionette": "^1.5.0"
+    "backbone.marionette": "^1.5.0",
+    "gsap": "~1.11.8"
   },
   "devDependencies": {
     "requirejs": "~2.1.11",
