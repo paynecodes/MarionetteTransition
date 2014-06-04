@@ -49,7 +49,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         push: function(view, options) {
             this.ensureEl();
 
-            var pushOptions = options || {};
+            var pushOptions = this.setupTransitionOptions(options);
 
             pushOptions.push = true;
 
@@ -81,7 +81,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             this.ensureEl();
 
-            var popOptions = options || {};
+            var popOptions = this.setupTransitionOptions(options);
 
             popOptions.pop = true;
 
