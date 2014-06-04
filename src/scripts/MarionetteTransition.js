@@ -1,6 +1,8 @@
 define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.cssplugin', 'animations/horizontalSlideToPosition'], function($, _, Marionette, TweenLite, CSSPlugin, horizontalSlideToPosition) {
     'use strict';
 
+    TweenLite.defaultOverwrite = 'all';
+
     var MarionetteTransition = Marionette.Region.extend({
         initialize: function(options) {
             this.views = [];
@@ -9,9 +11,10 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         showTransition: function(view, options) {
             this.ensureEl();
 
-            var showOptions = options || {};
+            var showOptions = this.setupTransitionOptions(options);;
             var isViewClosed = view.isClosed || _.isUndefined(view.$el);
             var isDifferentView = view !== this.currentView;
+            var oldView = this.currentView;
 
             this.preventClose =  !!showOptions.preventClose;
 
@@ -19,20 +22,18 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             var _shouldCloseView = !this.preventClose && isDifferentView;
 
             view.render();
-            this._triggerBeforeShow(view);
+            this._triggerViewEvent(view, 'before:show');
 
             this.addViewToDom(view);
             this._triggerRepaint();
 
-            var transition = this.transitionToView(view, this.currentView, showOptions);
-            transition.done(_.bind(function() {
-                console.log('cleaning up views');
-                this._cleanUpViews();
-            }, this));
+            this.transitionToView(view, oldView, showOptions)
+                .done(_.bind(function() {
+                    this.onComplete(view, oldView, showOptions);
+                    this._cleanUpOldViews(view);
+                }, this));
 
-            this.currentView = view;
-
-            this._triggerShow(view);
+            this._triggerViewEvent(view, 'show');
 
             return this;
         },
@@ -45,20 +46,22 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             this.preventClose = true;
             var _shouldCloseView = this.preventClose;
+            var oldView = this.currentView;
 
             view.render();
-            this._triggerBeforeShow(view);
-            this._triggerBeforePush(view);
+            this._triggerViewEvent(view, 'before:show');
+            this._triggerViewEvent(view, 'before:push');
 
             this.addViewToDom(view);
             this._triggerRepaint();
 
-            this.transitionToView(view, this.currentView, pushOptions);
+            this.transitionToView(view, oldView, pushOptions)
+                .done(_.bind(function() {
+                    this.onComplete(view, oldView, pushOptions);
+                }, this));
 
-            this.currentView = view;
-
-            this._triggerShow(view);
-            this._triggerPush(view);
+            this._triggerViewEvent(view, 'show');
+            this._triggerViewEvent(view, 'push');
 
             this.addView(view);
 
@@ -76,52 +79,60 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.preventClose = false;
             var _shouldCloseView = this.preventClose;
 
-            var currentView = this.currentView;
+            var oldView = this.currentView;
             var newView = this.views[this.currentViewIndex - 1];
 
-            this._triggerBeforeShow(newView);
-            this._triggerBeforePop(newView);
+            this._triggerViewEvent(newView, 'before:show');
+            this._triggerViewEvent(newView, 'before:pop');
 
-            this.transitionToView(newView, currentView, popOptions);
+            this.transitionToView(newView, oldView, popOptions)
+                .done(_.bind(function() {
+                    this.onComplete(newView, oldView, popOptions);
+                }, this));
 
-            this.currentView = newView;
-
-            this._triggerShow(newView);
-            this._triggerPop(newView);
+            this._triggerViewEvent(newView, 'show');
+            this._triggerViewEvent(newView, 'pop');
 
             this.removeView();
 
             return this;
         },
-        transitionToView: function(newView, currentView, options) {
+        transitionToView: function(newView, oldView, options) {
             this.prepareCommonOptions(options);
             this.prepareRegionContainer();
             this.prepareNewView(newView, options);
-            if (currentView && currentView.$el) {
-                this.prepareCurrentView(currentView, options);
+            if (oldView && oldView.$el) {
+                this.prepareOldView(oldView, options);
             }
 
             var self = this;
             var deferred = $.Deferred();
 
             _.defer(function() {
-                _.delay(transition, 20);
+                _.delay(function() {
+                    if (options.beforeAnimate) {
+                        if (_.isFunction(options.beforeAnimate)) {
+                            options.beforeAnimate().done(transition);
+                        } else {
+                            options.beforeAnimate.done(transition);
+                        }
+                    } else {
+                        transition();
+                    }
+                }, 30);
             });
 
             function transition() {
-                var enterAnimation = self.enterAnimation(newView, options);
+                self.enterAnimation(newView, options)
+                    .eventCallback('onComplete', function() {
+                        deferred.resolve();
+                    })
+                    .play();
 
-                if (currentView && currentView.$el) {
-                    enterAnimation.eventCallback('onStart', function() {
-                        self.exitAnimation(currentView, options);
-                    });
+                if (oldView && oldView.$el) {
+                    self.exitAnimation(oldView, options)
+                        .play();
                 }
-
-                enterAnimation.eventCallback('onComplete', function() {
-                    self._triggerTransitionEnd(newView);
-                    if (currentView && !self.preventClose) currentView.close();
-                    deferred.resolve();
-                });
             }
 
             return deferred;
@@ -131,26 +142,39 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             options.duration = .4;
         },
         prepareRegionContainer: function() {
-            this.$el.css({
+            var setOptions = {
                 'position': 'relative'
-            })
+            };
+
+            TweenLite.set(this.$el, setOptions);
         },
         prepareNewView: function(view, options) {
-            view.$el.css({
+            var setOptions = {
                 'position': 'absolute',
                 'width': '100%',
-                'transform': 'matrix(1, 0, 0, 1,' + options.distance + ', 0)',
-                '-webkit-transform': 'matrix(1, 0, 0, 1,' + options.distance + ', 0)',
-                '-moz-transform': 'matrix(1, 0, 0, 1,' + options.distance + ', 0)',
-                '-ms-transform': 'matrix(1, 0, 0, 1,' + options.distance + ', 0)',
-                '-o-transform': 'matrix(1, 0, 0, 1,' + options.distance + ', 0)'
-            });
+                'z-index': '1'
+            };
+
+            if (options.direction === 'backward' || options.pop) {
+                _.extend(setOptions, { 'x': '-80' });
+            } else {
+                _.extend(setOptions, { 'x': options.distance });
+            }
+
+            TweenLite.set(view.$el, setOptions);
         },
-        prepareCurrentView: function(view, options) {
-            view.$el.css({
+        prepareOldView: function(view, options) {
+            var setOptions = {
                 'position': 'absolute',
-                'width': '100%'
-            });
+                'width': '100%',
+                'z-index': '1'
+            };
+
+            if (options.direction === "backward" || options.pop) {
+                _.extend(setOptions, { 'z-index': '2' });
+            }
+
+            TweenLite.set(view.$el, setOptions);
         },
         addViewToDom: function(view) {
             this.$el.append(view.el);
@@ -159,10 +183,10 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             return horizontalSlideToPosition(view.$el, 0, options);
         },
         exitAnimation: function(view, options) {
-            if (options.pop) {
+            if (options.pop || options.direction === "backward") {
                 return horizontalSlideToPosition(view.$el, options.distance, options);
             } else {
-                return horizontalSlideToPosition(view.$el, -150, _.extend(options, { opacity: "0" }))
+                return horizontalSlideToPosition(view.$el, -80, _.extend(options, { opacity: "0" }))
             }
         },
         addView: function(view) {
@@ -174,79 +198,53 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.views.splice(index, 1);
             this.currentViewIndex--;
         },
-        _cleanUpViews: function() {
+        _cleanUpOldViews: function(newView) {
             _.each(this.views, function(view, index) {
                 view.close();
             });
 
-            this.views = [this.currentView];
+            this.views = [newView];
             this.currentViewIndex = 0;
         },
         _triggerRepaint: function() {
             this.$el.get(0).offsetHeight;
         },
-        _triggerBeforeShow: function(view) {
-            Marionette.triggerMethod.call(this, "before:show", view);
+        _triggerViewEvent: function(view, evtName) {
+            Marionette.triggerMethod.call(this, evtName, view);
 
             if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("before:show");
+                view.triggerMethod(evtName);
             } else {
-                Marionette.triggerMethod.call(view, "before:show");
+                Marionette.triggerMethod.call(view, evtName);
             }
         },
-        _triggerShow: function(view) {
-            Marionette.triggerMethod.call(this, "show", view);
+        onComplete: function(newView, oldView, options) {
+            this.currentView = newView;
 
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("show");
-            } else {
-                Marionette.triggerMethod.call(view, "show");
+            this._triggerViewEvent(newView, 'transition:end');
+            this._triggerViewEvent(newView, 'transition:end:in');
+            if (oldView) {
+                this._triggerViewEvent(oldView, 'transition:end');
+                this._triggerViewEvent(oldView, 'transition:end:out');
+            }
+
+            if (oldView && !this.preventClose) oldView.close();
+
+            if (_.isFunction(options.onComplete)) {
+                options.onComplete();
             }
         },
-        _triggerBeforePush: function(view) {
-            Marionette.triggerMethod.call(this, "before:push", view);
+        setupTransitionOptions: function(options) {
+            var opts = _.clone(options) || {};
 
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("before:push");
-            } else {
-                Marionette.triggerMethod.call(view, "before:push");
-            }
-        },
-        _triggerPush: function(view) {
-            Marionette.triggerMethod.call(this, "push", view);
+            _.defaults(opts, {
+                direction: 'forward',
+                onStart: null,
+                onComplete: null,
+                emptyTransition: true
+            });
 
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("push");
-            } else {
-                Marionette.triggerMethod.call(view, "push");
-            }
-        },
-        _triggerBeforePop: function(view) {
-            Marionette.triggerMethod.call(this, "before:pop", view);
-
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("before:pop");
-            } else {
-                Marionette.triggerMethod.call(view, "before:pop");
-            }
-        },
-        _triggerPop: function(view) {
-            Marionette.triggerMethod.call(this, "pop", view);
-
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("pop");
-            } else {
-                Marionette.triggerMethod.call(view, "pop");
-            }
-        },
-        _triggerTransitionEnd: function(view) {
-            Marionette.triggerMethod.call(this, "transition:end", view);
-
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod("transition:end");
-            } else {
-                Marionette.triggerMethod.call(view, "transition:end");
-            }
+            return opts;
         }
     });
 
