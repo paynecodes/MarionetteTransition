@@ -189,9 +189,17 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.$el.append(view.el);
         },
         enterAnimation: function(view, options) {
+            if (_.isFunction(options.enterAnimation)) {
+                return _.bind(options.enterAnimation(), this)();
+            }
+
             return horizontalSlideToPosition(view.$el, 0, options);
         },
         exitAnimation: function(view, options) {
+            if (_.isFunction(options.exitAnimation)) {
+                return _.bind(options.exitAnimation(), this)();
+            }
+
             if (options.pop || options.direction === "backward") {
                 return horizontalSlideToPosition(view.$el, options.distance, options);
             } else {
@@ -248,6 +256,8 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             _.defaults(opts, {
                 direction: 'forward',
+                enterAnimation: null,
+                exitAnimation: null,
                 onStart: null,
                 onComplete: null,
                 transtionWhenEmpty: false
