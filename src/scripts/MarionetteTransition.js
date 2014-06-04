@@ -9,9 +9,18 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.currentViewIndex = -1;
         },
         showTransition: function(view, options) {
+            var showOptions = this.setupTransitionOptions(options);
+            var oldView = this.currentView;
+
+            if (!showOptions.transtionWhenEmpty && !oldView) {
+                this.show(view, showOptions);
+                this._triggerViewEvent(view, 'transition:end');
+                this._triggerViewEvent(view, 'transition:end:in');
+                return this;
+            }
+
             this.ensureEl();
 
-            var showOptions = this.setupTransitionOptions(options);;
             var isViewClosed = view.isClosed || _.isUndefined(view.$el);
             var isDifferentView = view !== this.currentView;
             var oldView = this.currentView;
@@ -241,7 +250,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 direction: 'forward',
                 onStart: null,
                 onComplete: null,
-                emptyTransition: true
+                transtionWhenEmpty: false
             });
 
             return opts;
