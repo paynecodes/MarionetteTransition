@@ -1,12 +1,17 @@
 define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.cssplugin', 'animations/horizontalSlideToPosition'], function($, _, Marionette, TweenLite, CSSPlugin, horizontalSlideToPosition) {
     'use strict';
 
-    TweenLite.defaultOverwrite = 'all';
-
     var MarionetteTransition = Marionette.Region.extend({
         initialize: function(options) {
+            this.setup();
+        },
+        setup: function() {
             this.views = [];
             this.currentViewIndex = -1;
+            this.listenToOnce(this, 'show', this.onShowOnce);
+        },
+        onShowOnce: function() {
+            this.$el.addClass('mt-region');
         },
         showTransition: function(view, options) {
             var showOptions = this.setupTransitionOptions(options);
@@ -14,6 +19,8 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             if (!showOptions.transtionWhenEmpty && !oldView) {
                 this.show(view, showOptions);
+                this.views = [view];
+                this.currentViewIndex = 0;
                 this._triggerViewEvent(view, 'transition:end');
                 this._triggerViewEvent(view, 'transition:end:in');
                 return this;
@@ -45,6 +52,31 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this._triggerViewEvent(view, 'show');
 
             return this;
+        },
+        closeTransition: function(options) {
+            var view = this.currentView;
+            var closeOptions = this.setupTransitionOptions(options);
+
+            if (!view || view.isClosed) {
+                return;
+            }
+
+            this.prepareCommonOptions(closeOptions);
+            this.prepareOldView(view, closeOptions);
+
+            this.exitAnimation(view, closeOptions)
+                .eventCallback('onComplete', _.bind(onComplete, this))
+                .play();
+
+            function onComplete() {
+                _.each(this.views, function(viewInStack, index) {
+                    viewInStack.close();
+                });
+
+                Marionette.triggerMethod.call(this, "close");
+                this.setup();
+                delete this.currentView;
+            }
         },
         push: function(view, options) {
             this.ensureEl();
@@ -128,7 +160,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                     } else {
                         transition();
                     }
-                }, 30);
+                }, 50);
             });
 
             function transition() {
@@ -148,21 +180,16 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         },
         prepareCommonOptions: function(options) {
             options.distance = this.$el.width();
-            options.duration = .4;
+
+            if (options.distance < 600) options.duration = .4;
+            else options.duration = .5;
         },
         prepareRegionContainer: function() {
-            var setOptions = {
-                'position': 'relative'
-            };
-
-            TweenLite.set(this.$el, setOptions);
         },
         prepareNewView: function(view, options) {
-            var setOptions = {
-                'position': 'absolute',
-                'width': '100%',
-                'z-index': '1'
-            };
+            var setOptions = {};
+
+            view.$el.addClass('mt-view');
 
             if (options.direction === 'backward' || options.pop) {
                 _.extend(setOptions, { 'x': '-80' });
@@ -173,11 +200,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             TweenLite.set(view.$el, setOptions);
         },
         prepareOldView: function(view, options) {
-            var setOptions = {
-                'position': 'absolute',
-                'width': '100%',
-                'z-index': '1'
-            };
+            var setOptions = {};
+
+            view.$el.addClass('mt-view');
 
             if (options.direction === "backward" || options.pop) {
                 _.extend(setOptions, { 'z-index': '2' });
@@ -236,7 +261,8 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             }
         },
         onComplete: function(newView, oldView, options) {
-            this.currentView = newView;
+            // this.currentView = newView;
+            this.attachView(newView);
 
             this._triggerViewEvent(newView, 'transition:end');
             this._triggerViewEvent(newView, 'transition:end:in');
