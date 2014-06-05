@@ -8,9 +8,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         setup: function() {
             this.views = [];
             this.currentViewIndex = -1;
-            this.listenToOnce(this, 'show', this.onShowOnce);
+            this.listenToOnce(this, 'show', this.onFirstShow);
         },
-        onShowOnce: function() {
+        onFirstShow: function() {
             this.$el.addClass('mt-region');
         },
         showTransition: function(view, options) {
@@ -69,6 +69,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 .play();
 
             function onComplete() {
+                this._triggerViewEvent(view, 'transition:end');
+                this._triggerViewEvent(view, 'transition:end:out');
+
                 _.each(this.views, function(viewInStack, index) {
                     viewInStack.close();
                 });
@@ -76,6 +79,26 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 Marionette.triggerMethod.call(this, "close");
                 this.setup();
                 delete this.currentView;
+            }
+        },
+        hideTransition: function(options) {
+            var view = this.currentView;
+            var closeOptions = this.setupTransitionOptions(options);
+
+            if (!view || view.isClosed) {
+                return;
+            }
+
+            this.prepareCommonOptions(closeOptions);
+            this.prepareOldView(view, closeOptions);
+
+            this.exitAnimation(view, closeOptions)
+                .eventCallback('onComplete', _.bind(onComplete, this))
+                .play();
+
+            function onComplete() {
+                this._triggerViewEvent(view, 'transition:end');
+                this._triggerViewEvent(view, 'transition:end:out');
             }
         },
         push: function(view, options) {
