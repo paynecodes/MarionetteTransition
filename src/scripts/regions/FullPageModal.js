@@ -8,6 +8,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         },
         prepareRegionContainer: function() {
             this.$el.addClass('open');
+            this.bindRegionListeners();
+        },
+        bindRegionListeners: function() {
             this.listenToOnce(this, 'transition:end:out close', function() {
                 this.$el.removeClass('open');
             });
