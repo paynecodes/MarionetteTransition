@@ -6,23 +6,59 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.setup();
         },
         setup: function() {
-            this.views = [];
+            this.viewStack = [];
             this.currentViewIndex = -1;
             this.listenToOnce(this, 'show', this.onFirstShow);
         },
         onFirstShow: function() {
             this.$el.addClass('mt-region');
         },
+        show: function() {
+            var args = 1 <= arguments.length ? [].slice.call(arguments, 0) : [];
+
+            var view = args[0];
+
+            this.listenTo(view, 'show', function() {
+                // Without deferring this our _resetViews method was blocking rendering
+                // Not sure why, but need to come back to this later.
+                _.defer(_.bind(function() {
+                    this._resetViews(view);
+                    this._triggerViewEvent(view, 'transition:end');
+                    this._triggerViewEvent(view, 'transition:end:in');
+                }, this));
+            });
+
+            this._show.apply(this, args);
+
+            this._cleanUpOldViews();
+
+
+            return this;
+        },
+        close: function() {
+            var args = 1 <= arguments.length ? [].slice.call(arguments, 0) : [];
+
+            this._close.apply(this, args);
+
+            this._cleanUpOldViews();
+
+            return this;
+        },
         showTransition: function(view, options) {
             var showOptions = this.setupTransitionOptions(options);
             var oldView = this.currentView;
 
+            // Just show the view without any transition when the region is empty
+            // and transitionWhenEmpty is false. This is false by default
             if (!showOptions.transtionWhenEmpty && !oldView) {
                 this.show(view, showOptions);
-                this.views = [view];
-                this.currentViewIndex = 0;
-                this._triggerViewEvent(view, 'transition:end');
-                this._triggerViewEvent(view, 'transition:end:in');
+                return this;
+            }
+
+            // If this view already exists and is the currentView,
+            // prepare the region and animate the view in.
+            if (view === oldView) {
+                this.showSame(view, options)
                 return this;
             }
 
@@ -43,10 +79,12 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.addViewToDom(view);
             this._triggerRepaint();
 
-            this.transitionToView(view, oldView, showOptions)
-                .done(_.bind(function() {
-                    this.onComplete(view, oldView, showOptions);
-                    this._cleanUpOldViews(view);
+            this.prepareRegion(view, oldView, showOptions);
+
+            $.when(this.transition(view, oldView, showOptions))
+                .then(_.bind(function() {
+                    this._cleanUpOldViews();
+                    this._resetViews(view);
                 }, this));
 
             this._triggerViewEvent(view, 'show');
@@ -64,18 +102,11 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.prepareCommonOptions(closeOptions);
             this.prepareOldView(view, closeOptions);
 
-            this.exitAnimation(view, closeOptions)
-                .eventCallback('onComplete', _.bind(onComplete, this))
-                .play();
+            $.when(this.transition(null, view, closeOptions))
+                .then(_.bind(onComplete, this));
 
             function onComplete() {
-                this._triggerViewEvent(view, 'transition:end');
-                this._triggerViewEvent(view, 'transition:end:out');
-
-                _.each(this.views, function(viewInStack, index) {
-                    viewInStack.close();
-                });
-
+                this._cleanUpOldViews();
                 Marionette.triggerMethod.call(this, "close");
                 this.setup();
                 delete this.currentView;
@@ -89,17 +120,12 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 return;
             }
 
+            this.preventClose = true;
+
             this.prepareCommonOptions(closeOptions);
             this.prepareOldView(view, closeOptions);
 
-            this.exitAnimation(view, closeOptions)
-                .eventCallback('onComplete', _.bind(onComplete, this))
-                .play();
-
-            function onComplete() {
-                this._triggerViewEvent(view, 'transition:end');
-                this._triggerViewEvent(view, 'transition:end:out');
-            }
+            $.when(this.transition(null, view, closeOptions));
         },
         push: function(view, options) {
             this.ensureEl();
@@ -119,10 +145,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.addViewToDom(view);
             this._triggerRepaint();
 
-            this.transitionToView(view, oldView, pushOptions)
-                .done(_.bind(function() {
-                    this.onComplete(view, oldView, pushOptions);
-                }, this));
+            this.prepareRegion(view, oldView, pushOptions);
+
+            $.when(this.transition(view, oldView, pushOptions));
 
             this._triggerViewEvent(view, 'show');
             this._triggerViewEvent(view, 'push');
@@ -132,7 +157,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             return this;
         },
         pop: function(options) {
-            if (this.currentViewIndex <= 0 || this.views.length <= 1) return this;
+            if (this.currentViewIndex <= 0 || this.viewStack.length <= 1) return this;
 
             this.ensureEl();
 
@@ -144,15 +169,14 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             var _shouldCloseView = this.preventClose;
 
             var oldView = this.currentView;
-            var newView = this.views[this.currentViewIndex - 1];
+            var newView = this.viewStack[this.currentViewIndex - 1];
 
             this._triggerViewEvent(newView, 'before:show');
             this._triggerViewEvent(newView, 'before:pop');
 
-            this.transitionToView(newView, oldView, popOptions)
-                .done(_.bind(function() {
-                    this.onComplete(newView, oldView, popOptions);
-                }, this));
+            this.prepareRegion(newView, oldView, popOptions);
+
+            $.when(this.transition(newView, oldView, popOptions));
 
             this._triggerViewEvent(newView, 'show');
             this._triggerViewEvent(newView, 'pop');
@@ -161,48 +185,88 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             return this;
         },
-        transitionToView: function(newView, oldView, options) {
+        showSame: function(view, options) {
+            this.prepareRegion(view, null, options);
+            $.when(this.transition(view, null, options));
+            return this;
+        },
+        prepareRegion: function(newView, oldView, options) {
             this.prepareCommonOptions(options);
             this.prepareRegionContainer();
-            this.prepareNewView(newView, options);
+            if (newView && newView.$el) {
+                this.prepareNewView(newView, options);
+            }
             if (oldView && oldView.$el) {
                 this.prepareOldView(oldView, options);
             }
-
+        },
+        transition: function(newView, oldView, options) {
+            var wrapperDeferred = $.Deferred();
+            var dfds = [];
             var self = this;
-            var deferred = $.Deferred();
 
-            _.defer(function() {
-                _.delay(function() {
-                    if (options.beforeAnimate) {
-                        if (_.isFunction(options.beforeAnimate)) {
-                            options.beforeAnimate().done(transition);
-                        } else {
-                            options.beforeAnimate.done(transition);
-                        }
-                    } else {
-                        transition();
-                    }
-                }, 50);
-            });
+            // Don't worry too much about this mess.
+            // It only exists so that Safari (mainly iOS) doesn't give me problems.
+            // Basically, after deferring execution, then delaying 50ms
+            // the local transition function is called which handles the transition magic.
+            _.defer(_.bind(delay, this));
+            function delay() {
+                _.delay(_.bind(transition, this), 50)
+            }
 
             function transition() {
-                self.enterAnimation(newView, options)
-                    .eventCallback('onComplete', function() {
-                        deferred.resolve();
-                    })
-                    .play();
-
-                if (oldView && oldView.$el) {
-                    self.exitAnimation(oldView, options)
-                        .play();
+                if (!newView) dfds[0] = true;
+                else {
+                    dfds[0] = $.Deferred();
+                    self.transitionIn(newView, options)
+                        .done(function() {
+                            dfds[0].resolve();
+                        });
                 }
+
+                if (!oldView) dfds[1] = true;
+                else {
+                    dfds[1] = $.Deferred();
+                    self.transitionOut(oldView, options)
+                        .done(function() {
+                            dfds[1].resolve();
+                        });
+                }
+
+                return $.when.apply($, dfds)
+                            .done(_.bind(function() {
+                                wrapperDeferred.resolve()
+                            }, this));
             }
+
+            return wrapperDeferred.done(_.bind(function() {
+                this.onComplete(newView, oldView, options);
+            }, this));
+        },
+        transitionIn: function(view, options) {
+            var deferred = $.Deferred();
+
+            this.enterAnimation(view, options)
+                .eventCallback('onComplete', function() {
+                    deferred.resolve();
+                })
+                .play();
+
+            return deferred;
+        },
+        transitionOut: function(view, options) {
+            var deferred = $.Deferred();
+
+            this.exitAnimation(view, options)
+                .eventCallback('onComplete', function() {
+                    deferred.resolve();
+                })
+                .play();
 
             return deferred;
         },
         prepareCommonOptions: function(options) {
-            options.distance = this.$el.width();
+            options.distance = this.$el.width() + 30;
 
             if (options.distance < 600) options.duration = .4;
             else options.duration = .5;
@@ -255,46 +319,27 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             }
         },
         addView: function(view) {
-            this.views.push(view);
+            this.viewStack.push(view);
             this.currentViewIndex++;
         },
         removeView: function(index) {
-            index = index || this.views.length - 1;
-            this.views.splice(index, 1);
+            index = index || this.viewStack.length - 1;
+            this.viewStack.splice(index, 1);
             this.currentViewIndex--;
         },
-        _cleanUpOldViews: function(newView) {
-            _.each(this.views, function(view, index) {
-                view.close();
-            });
-
-            this.views = [newView];
-            this.currentViewIndex = 0;
-        },
-        _triggerRepaint: function() {
-            this.$el.get(0).offsetHeight;
-        },
-        _triggerViewEvent: function(view, evtName) {
-            Marionette.triggerMethod.call(this, evtName, view);
-
-            if (_.isFunction(view.triggerMethod)) {
-                view.triggerMethod(evtName);
-            } else {
-                Marionette.triggerMethod.call(view, evtName);
-            }
-        },
         onComplete: function(newView, oldView, options) {
-            // this.currentView = newView;
-            this.attachView(newView);
+            if (newView) {
+                this.attachView(newView);
+                this._triggerViewEvent(newView, 'transition:end');
+                this._triggerViewEvent(newView, 'transition:end:in');
+            }
 
-            this._triggerViewEvent(newView, 'transition:end');
-            this._triggerViewEvent(newView, 'transition:end:in');
             if (oldView) {
                 this._triggerViewEvent(oldView, 'transition:end');
                 this._triggerViewEvent(oldView, 'transition:end:out');
-            }
 
-            if (oldView && !this.preventClose) oldView.close();
+                if (!this.preventClose) oldView.close();
+            }
 
             if (_.isFunction(options.onComplete)) {
                 options.onComplete();
@@ -313,6 +358,35 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             });
 
             return opts;
+        },
+        _cleanUpOldViews: function() {
+            _.each(this.viewStack, function(view, index) {
+                view.close();
+            });
+        },
+        _resetViews: function(view) {
+            this.viewStack = [view];
+            this.currentViewIndex = 0;
+        },
+        _triggerRepaint: function() {
+            this.$el.get(0).offsetHeight;
+        },
+        _triggerViewEvent: function(view, evtName) {
+            Marionette.triggerMethod.call(this, evtName, view);
+
+            if (_.isFunction(view.triggerMethod)) {
+                view.triggerMethod(evtName);
+            } else {
+                Marionette.triggerMethod.call(view, evtName);
+            }
+        },
+        _show: function() {
+            var args = 1 <= arguments.length ? [].slice.call(arguments, 0) : [];
+            return Marionette.Region.prototype.show.apply(this, args);
+        },
+        _close: function() {
+            var args = 1 <= arguments.length ? [].slice.call(arguments, 0) : [];
+            return Marionette.Region.prototype.close.apply(this, args);
         }
     });
 
