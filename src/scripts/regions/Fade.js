@@ -3,9 +3,10 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
     var Fade = MarionetteTransition.extend({
         prepareCommonOptions: function(options) {
-            options.duration = .4;
+            options.duration = 0.4;
         },
         prepareNewView: function(view, options) {
+            /*jshint unused:false */
             var setOptions = {};
 
             view.$el.addClass('mt-view');
@@ -15,6 +16,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             TweenLite.set(view.$el, setOptions);
         },
         prepareOldView: function(view, options) {
+            /*jshint unused:false */
             var setOptions = {};
 
             view.$el.addClass('mt-view');

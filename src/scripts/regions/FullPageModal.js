@@ -4,7 +4,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
     var FullPageModal = MarionetteTransition.extend({
         prepareCommonOptions: function(options) {
             options.distance = $('body').height();
-            options.duration = .4;
+            options.duration = 0.4;
         },
         prepareRegionContainer: function() {
             this.$el.addClass('open');

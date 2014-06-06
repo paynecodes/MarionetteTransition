@@ -3,6 +3,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
     var MarionetteTransition = Marionette.Region.extend({
         initialize: function(options) {
+            /*jshint unused:false */
             this.setup();
         },
         setup: function() {
@@ -58,7 +59,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             // If this view already exists and is the currentView,
             // prepare the region and animate the view in.
             if (view === oldView) {
-                this.showSame(view, options)
+                this.showSame(view, options);
                 return this;
             }
 
@@ -66,18 +67,16 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             var isViewClosed = view.isClosed || _.isUndefined(view.$el);
             var isDifferentView = view !== this.currentView;
-            var oldView = this.currentView;
 
             this.preventClose =  !!showOptions.preventClose;
-
-            // only close the view if we don't want to preventClose and the view is different
-            var _shouldCloseView = !this.preventClose && isDifferentView;
 
             view.render();
             this._triggerViewEvent(view, 'before:show');
 
-            this.addViewToDom(view);
-            this._triggerRepaint();
+            if (isDifferentView || isViewClosed) {
+                this.addViewToDom(view);
+                this._triggerRepaint();
+            }
 
             this.prepareRegion(view, oldView, showOptions);
 
@@ -99,18 +98,19 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 return;
             }
 
+            function onComplete() {
+                /*jshint validthis:true */
+                this._cleanUpOldViews();
+                Marionette.triggerMethod.call(this, 'close');
+                this.setup();
+                delete this.currentView;
+            }
+
             this.prepareCommonOptions(closeOptions);
             this.prepareOldView(view, closeOptions);
 
             $.when(this.transition(null, view, closeOptions))
                 .then(_.bind(onComplete, this));
-
-            function onComplete() {
-                this._cleanUpOldViews();
-                Marionette.triggerMethod.call(this, "close");
-                this.setup();
-                delete this.currentView;
-            }
         },
         hideTransition: function(options) {
             var view = this.currentView;
@@ -135,7 +135,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             pushOptions.push = true;
 
             this.preventClose = true;
-            var _shouldCloseView = this.preventClose;
+
             var oldView = this.currentView;
 
             view.render();
@@ -157,7 +157,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             return this;
         },
         pop: function(options) {
-            if (this.currentViewIndex <= 0 || this.viewStack.length <= 1) return this;
+            if (this.currentViewIndex <= 0 || this.viewStack.length <= 1) {
+                return this;
+            }
 
             this.ensureEl();
 
@@ -166,7 +168,6 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             popOptions.pop = true;
 
             this.preventClose = false;
-            var _shouldCloseView = this.preventClose;
 
             var oldView = this.currentView;
             var newView = this.viewStack[this.currentViewIndex - 1];
@@ -205,17 +206,10 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             var dfds = [];
             var self = this;
 
-            // Don't worry too much about this mess.
-            // It only exists so that Safari (mainly iOS) doesn't give me problems.
-            // Basically, after deferring execution, then delaying 50ms
-            // the local transition function is called which handles the transition magic.
-            _.defer(_.bind(delay, this));
-            function delay() {
-                _.delay(_.bind(transition, this), 50)
-            }
-
             function transition() {
-                if (!newView) dfds[0] = true;
+                if (!newView) {
+                    dfds[0] = true;
+                }
                 else {
                     dfds[0] = $.Deferred();
                     self.transitionIn(newView, options)
@@ -224,7 +218,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                         });
                 }
 
-                if (!oldView) dfds[1] = true;
+                if (!oldView) {
+                    dfds[1] = true;
+                }
                 else {
                     dfds[1] = $.Deferred();
                     self.transitionOut(oldView, options)
@@ -233,11 +229,23 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                         });
                 }
 
+                /*jshint validthis:true */
                 return $.when.apply($, dfds)
                             .done(_.bind(function() {
-                                wrapperDeferred.resolve()
+                                wrapperDeferred.resolve();
                             }, this));
             }
+
+            function delay() {
+                /*jshint validthis:true */
+                _.delay(_.bind(transition, this), 50);
+            }
+
+            // Don't worry too much about this mess.
+            // It only exists so that Safari (mainly iOS) doesn't give me problems.
+            // Basically, after deferring execution, then delaying 50ms
+            // the local transition function is called which handles the transition magic.
+            _.defer(_.bind(delay, this));
 
             return wrapperDeferred.done(_.bind(function() {
                 this.onComplete(newView, oldView, options);
@@ -268,8 +276,12 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
         prepareCommonOptions: function(options) {
             options.distance = this.$el.width() + 30;
 
-            if (options.distance < 600) options.duration = .4;
-            else options.duration = .5;
+            if (options.distance < 600) {
+                options.duration = 0.4;
+            }
+            else {
+                options.duration = 0.5;
+            }
         },
         prepareRegionContainer: function() {
         },
@@ -291,7 +303,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
 
             view.$el.addClass('mt-view');
 
-            if (options.direction === "backward" || options.pop) {
+            if (options.direction === 'backward' || options.pop) {
                 _.extend(setOptions, { 'z-index': '2' });
             }
 
@@ -312,10 +324,10 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 return _.bind(options.exitAnimation(), this)();
             }
 
-            if (options.pop || options.direction === "backward") {
+            if (options.pop || options.direction === 'backward') {
                 return horizontalSlideToPosition(view.$el, options.distance, options);
             } else {
-                return horizontalSlideToPosition(view.$el, -80, _.extend(options, { opacity: "0" }))
+                return horizontalSlideToPosition(view.$el, -80, _.extend(options, { opacity: '0' }));
             }
         },
         addView: function(view) {
@@ -338,7 +350,9 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
                 this._triggerViewEvent(oldView, 'transition:end');
                 this._triggerViewEvent(oldView, 'transition:end:out');
 
-                if (!this.preventClose) oldView.close();
+                if (!this.preventClose) {
+                    oldView.close();
+                }
             }
 
             if (_.isFunction(options.onComplete)) {
@@ -360,7 +374,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             return opts;
         },
         _cleanUpOldViews: function() {
-            _.each(this.viewStack, function(view, index) {
+            _.each(this.viewStack, function(view) {
                 view.close();
             });
         },
@@ -369,7 +383,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'gsap.tweenlite', 'gsap.c
             this.currentViewIndex = 0;
         },
         _triggerRepaint: function() {
-            this.$el.get(0).offsetHeight;
+            return this.$el.get(0).offsetHeight;
         },
         _triggerViewEvent: function(view, evtName) {
             Marionette.triggerMethod.call(this, evtName, view);
