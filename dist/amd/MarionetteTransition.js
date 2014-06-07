@@ -1,3 +1,13 @@
+/*
+** MarionetteTransition v0.3.0
+** Description: Make your dancing Marionette apps transition beautifully.
+** Author: Jarrod Payne
+** Company: Webotomy
+** License: MIT
+**
+** Thanks to @jasonlaster and @jmeas for the help.
+*/ 
+
 define(['jquery', 'underscore', 'backbone.marionette', 'TweenLite', 'CSSPlugin', 'animations/horizontalSlideToPosition'], function($, _, Marionette, TweenLite, CSSPlugin, horizontalSlideToPosition) {
     'use strict';
 

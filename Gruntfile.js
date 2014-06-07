@@ -18,11 +18,23 @@ module.exports = function (grunt) {
     // Define the configuration for all the tasks
     grunt.initConfig({
 
+        // Package Config
+        'pkg': grunt.file.readJSON('package.json'),
+
         // Project settings
         yeoman: {
             // Configurable paths
             app: 'src',
-            dist: 'dist'
+            dist: 'dist',
+            banner: '/*\n' +
+            '** MarionetteTransition v<%= pkg.version %>\n' +
+            '** Description: Make your dancing Marionette apps transition beautifully.\n' +
+            '** Author: Jarrod Payne\n' +
+            '** Company: Webotomy\n' +
+            '** License: MIT\n' +
+            '**\n' +
+            '** Thanks to @jasonlaster and @jmeas for the help.\n' +
+            '*/ \n\n'
         },
 
         // Watches files for changes and runs tasks based on the changed files
@@ -70,7 +82,7 @@ module.exports = function (grunt) {
                 expand: true,
                 dot: true,
                 cwd: '<%= yeoman.app %>/scripts/',
-                dest: '<%= yeoman.dist %>/scripts/amd',
+                dest: '<%= yeoman.dist %>/amd',
                 src: [
                     '{,*/}*.js',
                 ]
@@ -86,33 +98,87 @@ module.exports = function (grunt) {
                     'backbone': '../bower_components/backbone/backbone',
                     'backbone.marionette': '../bower_components/backbone.marionette/lib/backbone.marionette',
                     'almond': '../bower_components/almond/almond',
-                    'gsap.tweenlite': '../bower_components/gsap/src/uncompressed/TweenLite',
-                    'gsap.cssplugin': '../bower_components/gsap/src/uncompressed/plugins/CSSPlugin'
+                    'TweenLite': '../bower_components/gsap/src/uncompressed/TweenLite',
+                    'CSSPlugin': '../bower_components/gsap/src/uncompressed/plugins/CSSPlugin'
                 },
                 shim: {
-                    'gsap.cssplugin': {
+                    'CSSPlugin': {
                         exports: 'CSSPlugin',
-                        deps: ['gsap.tweenlite']
+                        deps: ['TweenLite']
                     },
-                    'gsap.tweenlite': {
+                    'TweenLite': {
                         exports: 'TweenLite'
                     }
                 },
-                include: ['almond', 'MarionetteTransition'],
-                exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette', 'gsap.tweenlite', 'gsap.cssplugin'],
-                out: '<%= yeoman.dist %>/scripts/MarionetteTransition.min.js',
-                optimize: 'uglify',
-                wrap:{
-                    startFile:'<%= yeoman.app %>/fragments/wrap-start.frag',
-                    endFile:'<%= yeoman.app %>/fragments/wrap-end.frag'
+                include: ['MarionetteTransition'],
+                exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette', 'TweenLite', 'CSSPlugin'],
+                out: '<%= yeoman.dist %>/MarionetteTransition.js',
+                optimize: 'none',
+                skipModuleInsertion: true,
+                onModuleBundleComplete: function(data) {
+                    var fs = module.require('fs'),
+                        amdclean = module.require('amdclean'),
+                        outputFile = data.path,
+                        cleanedCode = amdclean.clean({
+                            'filePath': outputFile
+                        });
+
+                    cleanedCode = cleanedCode.replace(/jquery/g, 'jQuery');
+                    cleanedCode = cleanedCode.replace(/underscore/g, '_');
+                    cleanedCode = cleanedCode.replace(/backbonemarionette/g, 'Marionette');
+
+                    fs.writeFileSync(outputFile, cleanedCode);
                 }
             },
             dist: {},
-            distNoMin: {
-                options: {
-                    out: '<%= yeoman.dist %>/scripts/MarionetteTransition.js',
-                    optimize: 'none'
-                }
+        },
+
+        umd: {
+            all: {
+                src: '<%= yeoman.dist %>/MarionetteTransition.js',
+                objectToExport: 'MarionetteTransition',
+                template: 'umd',
+                dest: '<%= yeoman.dist %>/MarionetteTransition.js',
+                deps: { 'default': ['jQuery', '_', 'Marionette', 'TweenLite', 'CSSPlugin'] }
+            }
+        },
+
+        // Add Banner
+        'concat': {
+            options: {
+                banner: '<%= yeoman.banner %>',
+                stripBanners: true
+            },
+            amd: {
+                src: '<%= yeoman.dist %>/amd/MarionetteTransition.js',
+                dest: '<%= yeoman.dist %>/amd/MarionetteTransition.js'
+            },
+            umd: {
+                src: '<%= yeoman.dist %>/MarionetteTransition.js',
+                dest: '<%= yeoman.dist %>/MarionetteTransition.js'
+            }
+        },
+
+        // Minify JS
+        'uglify': {
+            umd: {
+                src: '<%= yeoman.dist %>/MarionetteTransition.js',
+                dest: '<%= yeoman.dist %>/MarionetteTransition.min.js'
+            }
+        },
+
+        // Keep bower.json in sync with package.json
+        /*jshint camelcase: false */
+        update_json: {
+            options: {
+                indent: '  '
+            },
+            bower: {
+                indent: '  ',
+                src: 'package.json',
+                dest: 'bower.json',     // where to write to
+                // the fields to update, as a String Grouping
+                fields: ['name', 'version', 'description', 'keywords', 'homepage', 'license']
             }
         }
     });
@@ -121,7 +187,11 @@ module.exports = function (grunt) {
         'clean:dist',
         'copy:amd',
         'requirejs:dist',
-        'requirejs:distNoMin'
+        'umd:all',
+        'concat:amd',
+        'concat:umd',
+        'uglify:umd',
+        'update_json:bower'
     ]);
 
     grunt.registerTask('default', [
