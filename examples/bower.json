@@ -1,0 +1,14 @@
+{
+  "name": "MarionetteTransitionExamples",
+  "private": true,
+  "dependencies": {
+    "modernizr": "~2.6.2",
+    "jquery": "~1.10.2",
+    "backbone.marionette": "~1.8.6"
+  },
+  "devDependencies": {
+    "requirejs": "~2.1.11",
+    "requirejs-domready": "~2.0.1",
+    "requirejs-text": "~2.0.10"
+  }
+}
