@@ -4,3 +4,4 @@ dist/bower_components
 .sass-cache
 src/bower_components
 test
+examples/app/bower_components
