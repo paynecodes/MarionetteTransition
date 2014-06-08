@@ -1,5 +1,4 @@
-/*jshint unused:false */
-define(['TweenLite', 'CSSPlugin'], function(TweenLite, CSSPlugin) {
+define(['TweenLite', 'CSSPlugin'], function(TweenLite) {
     'use strict';
 
     return function(el, options) {

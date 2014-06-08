@@ -21,6 +21,20 @@ module.exports = function (grunt) {
         // Package Config
         'pkg': grunt.file.readJSON('package.json'),
 
+        'amdClean': function(path) {
+            var amdclean = module.require('amdclean'),
+                outputFile = path,
+                cleanedCode = amdclean.clean({
+                    'filePath': outputFile
+                });
+
+            cleanedCode = cleanedCode.replace(/jquery/g, 'jQuery');
+            cleanedCode = cleanedCode.replace(/underscore/g, '_');
+            cleanedCode = cleanedCode.replace(/backbonemarionette/g, 'Marionette');
+
+            return cleanedCode;
+        },
+
         // Project settings
         yeoman: {
             // Configurable paths
@@ -90,51 +104,45 @@ module.exports = function (grunt) {
         },
 
         requirejs: {
-            options: {
-                baseUrl: '<%= yeoman.app %>/scripts',
-                paths: {
-                    'jquery': '../bower_components/jquery/dist/jquery',
-                    'underscore': '../bower_components/underscore/underscore',
-                    'backbone': '../bower_components/backbone/backbone',
-                    'backbone.marionette': '../bower_components/backbone.marionette/lib/backbone.marionette',
-                    'almond': '../bower_components/almond/almond',
-                    'TweenLite': '../bower_components/gsap/src/uncompressed/TweenLite',
-                    'CSSPlugin': '../bower_components/gsap/src/uncompressed/plugins/CSSPlugin'
-                },
-                shim: {
-                    'CSSPlugin': {
-                        exports: 'CSSPlugin',
-                        deps: ['TweenLite']
+            dist: {
+                options: {
+                    baseUrl: '<%= yeoman.app %>/scripts',
+                    paths: {
+                        'jquery': '../bower_components/jquery/dist/jquery',
+                        'underscore': '../bower_components/underscore/underscore',
+                        'backbone': '../bower_components/backbone/backbone',
+                        'backbone.marionette': '../bower_components/backbone.marionette/lib/backbone.marionette',
+                        'TweenLite': '../bower_components/gsap/src/uncompressed/TweenLite',
+                        'CSSPlugin': '../bower_components/gsap/src/uncompressed/plugins/CSSPlugin'
                     },
-                    'TweenLite': {
-                        exports: 'TweenLite'
+                    shim: {
+                        'CSSPlugin': {
+                            exports: 'CSSPlugin',
+                            deps: ['TweenLite']
+                        },
+                        'TweenLite': {
+                            exports: 'TweenLite'
+                        }
+                    },
+                    include: ['MarionetteTransition'],
+                    exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette', 'TweenLite', 'CSSPlugin'],
+                    out: '<%= yeoman.dist %>/MarionetteTransition.js',
+                    optimize: 'none',
+                    skipModuleInsertion: true,
+                    onModuleBundleComplete: function(data) {
+                        var fs = module.require('fs'),
+                            cleanedCode = grunt.config.get('amdClean')(data.path);
+
+                        grunt.log.writeln('this is a test');
+
+                        fs.writeFileSync(data.path, cleanedCode);
                     }
-                },
-                include: ['MarionetteTransition'],
-                exclude: ['jquery', 'underscore', 'backbone', 'backbone.marionette', 'TweenLite', 'CSSPlugin'],
-                out: '<%= yeoman.dist %>/MarionetteTransition.js',
-                optimize: 'none',
-                skipModuleInsertion: true,
-                onModuleBundleComplete: function(data) {
-                    var fs = module.require('fs'),
-                        amdclean = module.require('amdclean'),
-                        outputFile = data.path,
-                        cleanedCode = amdclean.clean({
-                            'filePath': outputFile
-                        });
-
-                    cleanedCode = cleanedCode.replace(/jquery/g, 'jQuery');
-                    cleanedCode = cleanedCode.replace(/underscore/g, '_');
-                    cleanedCode = cleanedCode.replace(/backbonemarionette/g, 'Marionette');
-
-                    fs.writeFileSync(outputFile, cleanedCode);
                 }
-            },
-            dist: {},
+            }
         },
 
         umd: {
-            all: {
+            main: {
                 src: '<%= yeoman.dist %>/MarionetteTransition.js',
                 objectToExport: 'MarionetteTransition',
                 template: 'umd',
@@ -187,7 +195,7 @@ module.exports = function (grunt) {
         'clean:dist',
         'copy:amd',
         'requirejs:dist',
-        'umd:all',
+        'umd:main',
         'concat:amd',
         'concat:umd',
         'uglify:umd',

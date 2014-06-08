@@ -24,8 +24,7 @@
   }
 }(this, function (jQuery, _, Marionette, TweenLite, CSSPlugin) {
 
-/*jshint unused:false */
-var animations_horizontalSlideToPosition = function (TweenLite, CSSPlugin) {
+var animations_horizontalSlideToPosition = function (TweenLite) {
         
         return function (el, position, options) {
             return TweenLite.to(el, options.duration, {
