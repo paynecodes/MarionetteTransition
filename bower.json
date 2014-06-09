@@ -1,7 +1,7 @@
 {
 	"name": "MarionetteTransition",
 	"description": "Make your dancing Marionette apps transition beautifully.",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"private": false,
 	"license": "MIT",
 	"main": [
