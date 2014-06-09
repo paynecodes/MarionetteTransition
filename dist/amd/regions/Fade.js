@@ -29,7 +29,7 @@ define(['jquery', 'underscore', 'backbone.marionette', 'TweenLite', 'CSSPlugin',
             return opacity(view.$el, _.extend(options, { 'opacity': '1' }));
         },
         exitAnimation: function(view, options) {
-            return opacity(view.$el, _.extend(options, { 'opacity': '0' }));
+            return opacity(view.$el, _.extend(options, { 'opacity': '0', duration: 0.2 }));
         }
     });
 

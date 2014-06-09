@@ -6,7 +6,7 @@
 ** License: MIT
 **
 ** Thanks to @jasonlaster and @jmeas for the help.
-*/ 
+*/
 
 define(['jquery', 'underscore', 'backbone.marionette', 'TweenLite', 'CSSPlugin', 'animations/horizontalSlideToPosition'], function($, _, Marionette, TweenLite, CSSPlugin, horizontalSlideToPosition) {
     'use strict';
@@ -248,7 +248,15 @@ define(['jquery', 'underscore', 'backbone.marionette', 'TweenLite', 'CSSPlugin',
 
             function delay() {
                 /*jshint validthis:true */
-                _.delay(_.bind(transition, this), 50);
+                if (_.isFunction(options.beforeAnimate)) {
+                    $.when(options.beforeAnimate()).then(_.bind(function() {
+                        _.delay(_.bind(transition, this), 50);
+                    }, this));
+                } else {
+                    $.when(options.beforeAnimate).then(_.bind(function() {
+                        _.delay(_.bind(transition, this), 50);
+                    }, this));
+                }
             }
 
             // Don't worry too much about this mess.
